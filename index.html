@@ -180,15 +180,18 @@
     let pointerX = -9999, pointerY = -9999;
 
     const FLEE_RADIUS = 300;
-    const FLEE_FORCE  = 50;
-    const FRICTION    = 0.85;  // Se frena más suavemente
-    const BOUNCE      = 0.50;
+    const FLEE_FORCE  = 20;        // ✅ Mucho más suave (antes 50)
+    const FRICTION    = 0.90;      // ✅ Se frena más rápido
+    const BOUNCE      = 0.40;      // ✅ Rebote más suave
 
     wrap.style.left = imgX + 'px';
     wrap.style.top  = imgY + 'px';
 
     let approachCount  = 0;
     let wasNear        = false;
+    
+    // ✅ Timer para mantener el globo visible más tiempo
+    let bubbleTimer = null;
 
     function handlePointerMove(clientX, clientY) {
       pointerX = clientX;
@@ -217,6 +220,12 @@
     }, { passive: false });
 
     function updateBubbles(near) {
+      // ✅ Cancelar timer anterior
+      if (bubbleTimer) {
+        clearTimeout(bubbleTimer);
+        bubbleTimer = null;
+      }
+
       if (near) {
         if (approachCount <= 1) {
           bubble1.classList.add('show');
@@ -227,10 +236,14 @@
           bubble2.classList.add('show');
           bubble3.classList.add('show');
         }
-      } else {
-        bubble1.classList.remove('show');
-        bubble2.classList.remove('show');
-        bubble3.classList.remove('show');
+        
+        // ✅ Mantener el globo visible 2 segundos después de alejarse
+        bubbleTimer = setTimeout(() => {
+          bubble1.classList.remove('show');
+          bubble2.classList.remove('show');
+          bubble3.classList.remove('show');
+          bubbleTimer = null;
+        }, 2000);
       }
     }
 
@@ -239,7 +252,7 @@
 
     function spawnParticle() {
       const now = Date.now();
-      if (now - lastParticle < 280) return;
+      if (now - lastParticle < 400) return;  // ✅ Menos partículas
       lastParticle = now;
 
       const el = document.createElement('div');
@@ -270,7 +283,7 @@
       wasNear = near;
 
       if (near) {
-        const strength = Math.pow((FLEE_RADIUS - dist) / FLEE_RADIUS, 1.5);
+        const strength = Math.pow((FLEE_RADIUS - dist) / FLEE_RADIUS, 1.2);  // ✅ Movimiento más suave
         velX += (dx / dist) * FLEE_FORCE * strength;
         velY += (dy / dist) * FLEE_FORCE * strength;
         wrap.classList.add('scared');
@@ -280,8 +293,6 @@
       }
 
       updateBubbles(near);
-
-      // 🚫 ELIMINADA la atracción al centro - el avatar se queda donde escapó
 
       velX *= FRICTION;
       velY *= FRICTION;
