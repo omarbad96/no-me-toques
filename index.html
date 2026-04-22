@@ -181,7 +181,7 @@
 
     const FLEE_RADIUS = 300;
     const FLEE_FORCE  = 50;
-    const FRICTION    = 0.80;
+    const FRICTION    = 0.85;  // Se frena más suavemente
     const BOUNCE      = 0.50;
 
     wrap.style.left = imgX + 'px';
@@ -281,8 +281,7 @@
 
       updateBubbles(near);
 
-      velX += (window.innerWidth  / 2 - imgX) * 0.015;
-      velY += (window.innerHeight / 2 - imgY) * 0.015;
+      // 🚫 ELIMINADA la atracción al centro - el avatar se queda donde escapó
 
       velX *= FRICTION;
       velY *= FRICTION;
@@ -293,6 +292,7 @@
       const halfW = AVATAR_WIDTH  / 2;
       const halfH = AVATAR_HEIGHT / 2;
 
+      // Rebote en bordes
       if (imgX < halfW)                      { imgX = halfW;                      velX *= -BOUNCE; }
       if (imgX > window.innerWidth  - halfW) { imgX = window.innerWidth  - halfW; velX *= -BOUNCE; }
       if (imgY < halfH)                      { imgY = halfH;                      velY *= -BOUNCE; }
