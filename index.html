@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🙅‍♀️ No me toques</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bubblegum+Sans&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      background: #ffffff;
+      touch-action: none;
+    }
+
+    #avatar-wrap {
+      position: fixed;
+      z-index: 10;
+      transform: translate(-50%, -50%);
+      margin-top: 90px;
+    }
+
+    #avatar-wrap img {
+      width: 220px;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 10px 28px rgba(0,0,0,0.15));
+      transition: transform 0.12s cubic-bezier(.34,1.56,.64,1);
+      -webkit-user-drag: none;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    #avatar-wrap.scared img {
+      transform: rotate(-6deg) scale(1.05);
+    }
+
+    .bubble {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      transform-origin: bottom center;
+      background: #fff;
+      border: 3.5px solid #111;
+      border-radius: 999px;
+      padding: 10px 22px;
+      white-space: nowrap;
+      font-family: 'Bangers', cursive;
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+      color: #111;
+      box-shadow: 4px 4px 0 #111;
+      transition: transform 0.22s cubic-bezier(.34,1.56,.64,1), opacity 0.18s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .bubble::after,
+    .bubble::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .bubble::after {
+      bottom: -17px;
+      border: 10px solid transparent;
+      border-top-color: #111;
+    }
+
+    .bubble::before {
+      bottom: -11px;
+      border: 8px solid transparent;
+      border-top-color: #fff;
+      z-index: 1;
+    }
+
+    .bubble.show {
+      transform: translateX(-50%) scale(1);
+      opacity: 1;
+    }
+
+    #bubble1 {
+      top: -72px;
+    }
+
+    #bubble2 {
+      top: -80px;
+      color: #cc0000;
+      font-size: 1.35rem;
+      border-color: #cc0000;
+      box-shadow: 4px 4px 0 #cc0000;
+      background: #fff8f8;
+    }
+    #bubble2::after  { border-top-color: #cc0000; }
+    #bubble2::before { border-top-color: #fff8f8; }
+
+    #bubble3 {
+      top: -150px;
+      font-size: 1.1rem;
+      background: #fffde7;
+      border-color: #111;
+      box-shadow: 4px 4px 0 #111;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Bubblegum Sans', cursive;
+      font-size: 0.9rem;
+      color: #aaa;
+      animation: pulse 2.5s ease-in-out infinite;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 2;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50%       { opacity: 1; }
+    }
+
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      font-size: 1.6rem;
+      animation: flyOff 0.85s ease-out forwards;
+      z-index: 30;
+    }
+
+    @keyframes flyOff {
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
+    }
+
+    @media (max-width: 480px) {
+      #hint { bottom: 16px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="hint">👀 acercate… si te animás</div>
+
+  <div id="avatar-wrap">
+    <div class="bubble" id="bubble1">¡No me toques!</div>
+    <div class="bubble" id="bubble3">¡Te dije que no me toques!</div>
+    <div class="bubble" id="bubble2">@#$%&*!</div>
+
+    <!-- USANDO TU IMAGEN LOCAL -->
+    <img src="foto.png" alt="avatar asustado" draggable="false" />
+  </div>
+
+<script>
+  (function(){
+    "use strict";
+
+    const wrap    = document.getElementById('avatar-wrap');
+    const bubble1 = document.getElementById('bubble1');
+    const bubble2 = document.getElementById('bubble2');
+    const bubble3 = document.getElementById('bubble3');
+    const img     = wrap.querySelector('img');
+
+    const AVATAR_WIDTH  = 220;
+    const AVATAR_HEIGHT = 220;
+
+    let imgX = window.innerWidth  / 2;
+    let imgY = window.innerHeight / 2;
+    let velX = 0, velY = 0;
+
+    let pointerX = -9999, pointerY = -9999;
+
+    const FLEE_RADIUS = 230;
+    const FLEE_FORCE  = 40;
+    const FRICTION    = 0.80;
+    const BOUNCE      = 0.50;
+
+    wrap.style.left = imgX + 'px';
+    wrap.style.top  = imgY + 'px';
+
+    let approachCount  = 0;
+    let wasNear        = false;
+
+    function handlePointerMove(clientX, clientY) {
+      pointerX = clientX;
+      pointerY = clientY;
+    }
+
+    window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX, e.clientY));
+    window.addEventListener('mouseleave', () => { pointerX = -9999; pointerY = -9999; });
+
+    window.addEventListener('touchmove',  (e) => { 
+      e.preventDefault();
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY); 
+    }, { passive: false });
+
+    window.addEventListener('touchstart', (e) => {
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => { 
+      pointerX = -9999; 
+      pointerY = -9999; 
+    });
+
+    document.body.addEventListener('touchmove', (e) => {
+      if (e.target === document.body) e.preventDefault();
+    }, { passive: false });
+
+    function updateBubbles(near) {
+      if (near) {
+        if (approachCount <= 1) {
+          bubble1.classList.add('show');
+          bubble2.classList.remove('show');
+          bubble3.classList.remove('show');
+        } else {
+          bubble1.classList.remove('show');
+          bubble2.classList.add('show');
+          bubble3.classList.add('show');
+        }
+      } else {
+        bubble1.classList.remove('show');
+        bubble2.classList.remove('show');
+        bubble3.classList.remove('show');
+      }
+    }
+
+    let lastParticle = 0;
+    const EMOJIS = ['😱','💨','‼️','🏃‍♀️','✨','😤','🚨','😳','💢'];
+
+    function spawnParticle() {
+      const now = Date.now();
+      if (now - lastParticle < 280) return;
+      lastParticle = now;
+
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      
+      const angle = Math.random() * Math.PI * 2;
+      const dist  = 60 + Math.random() * 90;
+      el.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      el.style.setProperty('--dy', Math.sin(angle) * dist - 40 + 'px');
+      
+      el.style.left = imgX + 'px';
+      el.style.top  = imgY + 'px';
+      document.body.appendChild(el);
+      
+      setTimeout(() => el.remove(), 900);
+    }
+
+    function gameLoop() {
+      const dx   = imgX - pointerX;
+      const dy   = imgY - pointerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const near = dist < FLEE_RADIUS && dist > 0;
+
+      if (near && !wasNear) {
+        approachCount++;
+      }
+      wasNear = near;
+
+      if (near) {
+        const strength = Math.pow((FLEE_RADIUS - dist) / FLEE_RADIUS, 1.5);
+        velX += (dx / dist) * FLEE_FORCE * strength;
+        velY += (dy / dist) * FLEE_FORCE * strength;
+        wrap.classList.add('scared');
+        spawnParticle();
+      } else {
+        wrap.classList.remove('scared');
+      }
+
+      updateBubbles(near);
+
+      velX += (window.innerWidth  / 2 - imgX) * 0.018;
+      velY += (window.innerHeight / 2 - imgY) * 0.018;
+
+      velX *= FRICTION;
+      velY *= FRICTION;
+
+      imgX += velX;
+      imgY += velY;
+
+      const halfW = AVATAR_WIDTH  / 2;
+      const halfH = AVATAR_HEIGHT / 2;
+
+      if (imgX < halfW)                      { imgX = halfW;                      velX *= -BOUNCE; }
+      if (imgX > window.innerWidth  - halfW) { imgX = window.innerWidth  - halfW; velX *= -BOUNCE; }
+      if (imgY < halfH)                      { imgY = halfH;                      velY *= -BOUNCE; }
+      if (imgY > window.innerHeight - halfH) { imgY = window.innerHeight - halfH; velY *= -BOUNCE; }
+
+      wrap.style.left = imgX + 'px';
+      wrap.style.top  = imgY + 'px';
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    if (img.complete) {
+      gameLoop();
+    } else {
+      img.addEventListener('load', gameLoop);
+    }
+
+    window.addEventListener('resize', () => {
+      const halfW = AVATAR_WIDTH  / 2;
+      const halfH = AVATAR_HEIGHT / 2;
+      imgX = Math.min(Math.max(imgX, halfW), window.innerWidth  - halfW);
+      imgY = Math.min(Math.max(imgY, halfH), window.innerHeight - halfH);
+      wrap.style.left = imgX + 'px';
+      wrap.style.top  = imgY + 'px';
+      
+      pointerX = -9999;
+      pointerY = -9999;
+    });
+
+  })();
+</script>
+</body>
+</html>
